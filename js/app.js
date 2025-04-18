@@ -16,6 +16,9 @@ document.addEventListener('DOMContentLoaded', function() {
     // Add network status detection
     setupNetworkStatusMonitoring();
     
+    // Set up refresh dashboard button
+    setupRefreshButton();
+    
     // Remove Firebase emulator warning
     removeFirebaseEmulatorWarning();
 });
@@ -105,6 +108,31 @@ function loadDashboardData(userData, userId) {
 
 // Function to clean up when user logs out
 function cleanupDashboard() {
+    // Clean up real-time listeners
+    if (window.activeListeners) {
+        if (window.activeListeners.userListener) {
+            window.activeListeners.userListener();
+        }
+        if (window.activeListeners.houseListener) {
+            window.activeListeners.houseListener();
+        }
+        if (window.activeListeners.rankingListener) {
+            window.activeListeners.rankingListener();
+        }
+        if (window.activeListeners.tasksListener) {
+            window.activeListeners.tasksListener();
+        }
+        window.activeListeners = {};
+    }
+    
+    // Reset dashboard data
+    document.getElementById('user-points').textContent = '0';
+    document.getElementById('user-task-count').textContent = '0';
+    document.getElementById('house-points').textContent = '0';
+    document.getElementById('house-rank').textContent = '-';
+    document.getElementById('total-tasks').textContent = '0';
+    
+    // Clean up component-specific functionality
     cleanupChat();
     cleanupLeaderboards();
     cleanupTasks();
@@ -132,4 +160,52 @@ function removeFirebaseEmulatorWarning() {
     
     // Set interval to keep checking and removing
     setInterval(removeWarning, 1000);
+}
+
+// Set up refresh dashboard button
+function setupRefreshButton() {
+    const refreshButton = document.getElementById('refresh-dashboard');
+    if (refreshButton) {
+        refreshButton.addEventListener('click', () => {
+            // Show spinning animation
+            refreshButton.classList.add('refreshing');
+            
+            // Get current user
+            const user = auth.currentUser;
+            if (user) {
+                // Get fresh data
+                db.collection('users').doc(user.uid).get().then(doc => {
+                    if (doc.exists) {
+                        const userData = doc.data();
+                        // Manually update dashboard elements
+                        document.getElementById('user-points').textContent = userData.points || 0;
+                        document.getElementById('user-task-count').textContent = userData.tasks || 0;
+                        
+                        // Update house data
+                        db.collection('houses').doc(userData.house).get().then(houseDoc => {
+                            if (houseDoc.exists) {
+                                const houseData = houseDoc.data();
+                                document.getElementById('house-points').textContent = houseData.points;
+                            }
+                            
+                            // Remove spinning animation
+                            setTimeout(() => {
+                                refreshButton.classList.remove('refreshing');
+                            }, 500);
+                        }).catch(error => {
+                            console.error("Error refreshing house data:", error);
+                            refreshButton.classList.remove('refreshing');
+                        });
+                    } else {
+                        refreshButton.classList.remove('refreshing');
+                    }
+                }).catch(error => {
+                    console.error("Error refreshing user data:", error);
+                    refreshButton.classList.remove('refreshing');
+                });
+            } else {
+                refreshButton.classList.remove('refreshing');
+            }
+        });
+    }
 } 

@@ -275,41 +275,78 @@ function updateUserInfo(userData) {
 // Load dashboard data
 async function loadDashboardData(userData, userId) {
     try {
-        // Load house points
-        const houseDoc = await db.collection('houses').doc(userData.house).get();
-        if (houseDoc.exists) {
-            const houseData = houseDoc.data();
-            document.getElementById('house-points').textContent = houseData.points;
-        } else {
-            // Fallback for offline or demo mode
-            document.getElementById('house-points').textContent = '0';
-        }
-        
-        // Load user points and task count
-        document.getElementById('user-points').textContent = userData.points || 0;
-        document.getElementById('user-task-count').textContent = userData.tasks || 0;
-        
-        // Load house rank - with error handling for offline mode
-        try {
-            const housesSnapshot = await db.collection('houses').orderBy('points', 'desc').get();
-            let rank = 1;
-            let found = false;
-            
-            housesSnapshot.forEach(doc => {
-                if (doc.id === userData.house) {
-                    document.getElementById('house-rank').textContent = `${rank}/${housesSnapshot.size}`;
-                    found = true;
+        // Set up real-time listeners for user data updates
+        const userListener = db.collection('users').doc(userId)
+            .onSnapshot(doc => {
+                if (doc.exists) {
+                    const userData = doc.data();
+                    
+                    // Update user points and task count in real-time
+                    document.getElementById('user-points').textContent = userData.points || 0;
+                    document.getElementById('user-task-count').textContent = userData.tasks || 0;
+                    
+                    // Update user info
+                    updateUserInfo(userData);
                 }
-                rank++;
+            }, error => {
+                console.error("Error getting real-time user data:", error);
             });
             
-            if (!found) {
-                document.getElementById('house-rank').textContent = '-';
-            }
-        } catch (error) {
-            console.error('Error loading house rank:', error);
-            document.getElementById('house-rank').textContent = '-';
-        }
+        // Store listener for cleanup
+        window.activeListeners = window.activeListeners || {};
+        window.activeListeners.userListener = userListener;
+        
+        // Set up real-time listener for house data
+        const houseListener = db.collection('houses').doc(userData.house)
+            .onSnapshot(doc => {
+                if (doc.exists) {
+                    const houseData = doc.data();
+                    document.getElementById('house-points').textContent = houseData.points;
+                }
+            }, error => {
+                console.error("Error getting real-time house data:", error);
+            });
+        
+        // Store listener for cleanup
+        window.activeListeners.houseListener = houseListener;
+        
+        // Set up real-time listener for house rankings
+        const rankingListener = db.collection('houses')
+            .orderBy('points', 'desc')
+            .onSnapshot(snapshot => {
+                let rank = 1;
+                let found = false;
+                let totalHouses = snapshot.size;
+                
+                snapshot.forEach(doc => {
+                    if (doc.id === userData.house) {
+                        document.getElementById('house-rank').textContent = `${rank}/${totalHouses}`;
+                        found = true;
+                    }
+                    rank++;
+                });
+                
+                if (!found) {
+                    document.getElementById('house-rank').textContent = '-';
+                }
+            }, error => {
+                console.error("Error getting real-time house rankings:", error);
+            });
+        
+        // Store listener for cleanup
+        window.activeListeners.rankingListener = rankingListener;
+        
+        // Set up real-time listener for total tasks completed on the platform
+        const tasksListener = db.collection('taskCompletions')
+            .where('status', '==', 'approved')
+            .onSnapshot(snapshot => {
+                document.getElementById('total-tasks').textContent = snapshot.size;
+            }, error => {
+                console.error("Error getting real-time total tasks:", error);
+            });
+        
+        // Store listener for cleanup
+        window.activeListeners.tasksListener = tasksListener;
         
         // Load actual components
         initChat(userData);
@@ -324,5 +361,6 @@ async function loadDashboardData(userData, userId) {
         document.getElementById('user-points').textContent = '0';
         document.getElementById('user-task-count').textContent = '0';
         document.getElementById('house-rank').textContent = '-';
+        document.getElementById('total-tasks').textContent = '0';
     }
 } 
