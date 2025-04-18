@@ -175,8 +175,9 @@ function loadIndividualsLeaderboard() {
     // Set up a real-time listener for users in the current user's house
     individualsListener = db.collection('users')
         .where('house', '==', currentUserHouse)
+        .where('isAdmin', '==', false)
         .orderBy('points', 'desc')
-        .limit(20) // Limit to top 20 users for performance
+        .limit(20)
         .onSnapshot(snapshot => {
             // Remove the loading indicator and keep the header
             individualsRankings.innerHTML = '';
@@ -195,6 +196,11 @@ function loadIndividualsLeaderboard() {
             snapshot.forEach(doc => {
                 const user = doc.data();
                 const userId = doc.id;
+                
+                // Skip admin users as a fallback check
+                if (user.email === 'admin@gmail.com') {
+                    return;
+                }
                 
                 // Create a row for this user
                 const rowElement = document.createElement('div');
