@@ -54,6 +54,12 @@ function loadHousesLeaderboard() {
     // Clear the rankings container
     housesRankings.innerHTML = '';
     
+    // Show loading indicator
+    const loadingElement = document.createElement('div');
+    loadingElement.classList.add('loading-indicator');
+    loadingElement.textContent = 'Loading leaderboard...';
+    housesRankings.appendChild(loadingElement);
+    
     // Set up a real-time listener for houses
     housesListener = db.collection('houses')
         .orderBy('points', 'desc')
@@ -61,6 +67,17 @@ function loadHousesLeaderboard() {
             housesRankings.innerHTML = '';
             
             let rank = 1;
+            const totalHouses = snapshot.size;
+            
+            // No houses found
+            if (totalHouses === 0) {
+                const noDataElement = document.createElement('div');
+                noDataElement.classList.add('no-data-message');
+                noDataElement.textContent = 'No house data available.';
+                housesRankings.appendChild(noDataElement);
+                return;
+            }
+            
             snapshot.forEach(doc => {
                 const house = doc.data();
                 const houseId = doc.id;
@@ -74,19 +91,33 @@ function loadHousesLeaderboard() {
                     rowElement.classList.add('current-user-house');
                 }
                 
+                // Set background color based on rank
+                if (rank === 1) {
+                    rowElement.classList.add('first-place');
+                } else if (rank === 2) {
+                    rowElement.classList.add('second-place');
+                } else if (rank === 3) {
+                    rowElement.classList.add('third-place');
+                }
+                
                 // Create the columns
                 const rankColumn = document.createElement('span');
                 rankColumn.textContent = rank;
+                rankColumn.classList.add('rank-column');
                 
                 const houseColumn = document.createElement('span');
                 houseColumn.innerHTML = `
+                    <img src="${HOUSES[houseId]?.crest || 'assets/hogwarts.svg'}" class="leaderboard-house-crest" />
                     <span class="house-badge" data-house="${houseId}">
                         ${house.name}
                     </span>
+                    <span class="member-count">(${house.memberCount || 0} members)</span>
                 `;
+                houseColumn.classList.add('house-column');
                 
                 const pointsColumn = document.createElement('span');
                 pointsColumn.textContent = house.points || 0;
+                pointsColumn.classList.add('points-column');
                 
                 // Add columns to the row
                 rowElement.appendChild(rankColumn);
@@ -98,8 +129,16 @@ function loadHousesLeaderboard() {
                 
                 rank++;
             });
+            
+            // Add the last updated timestamp
+            const lastUpdatedElement = document.createElement('div');
+            lastUpdatedElement.classList.add('last-updated');
+            lastUpdatedElement.textContent = `Last updated: ${new Date().toLocaleTimeString()}`;
+            housesRankings.appendChild(lastUpdatedElement);
+            
         }, error => {
             console.error('Error loading houses leaderboard:', error);
+            housesRankings.innerHTML = '<div class="error-message">Error loading leaderboard data. Please try again later.</div>';
         });
 }
 
@@ -114,13 +153,43 @@ function loadIndividualsLeaderboard() {
     // Clear the rankings container
     individualsRankings.innerHTML = '';
     
+    // Show loading indicator
+    const loadingElement = document.createElement('div');
+    loadingElement.classList.add('loading-indicator');
+    loadingElement.textContent = 'Loading house members...';
+    individualsRankings.appendChild(loadingElement);
+    
+    // Get the current house name to display in the header
+    const houseName = HOUSES[currentUserHouse]?.name || 'Unknown House';
+    const houseCrest = HOUSES[currentUserHouse]?.crest || 'assets/hogwarts.svg';
+    
+    // Create a header for the individuals leaderboard
+    const headerElement = document.createElement('div');
+    headerElement.classList.add('individuals-header');
+    headerElement.innerHTML = `
+        <img src="${houseCrest}" class="house-crest-large" />
+        <h3>${houseName} Members</h3>
+    `;
+    individualsRankings.appendChild(headerElement);
+    
     // Set up a real-time listener for users in the current user's house
     individualsListener = db.collection('users')
         .where('house', '==', currentUserHouse)
         .orderBy('points', 'desc')
         .limit(20) // Limit to top 20 users for performance
         .onSnapshot(snapshot => {
+            // Remove the loading indicator and keep the header
             individualsRankings.innerHTML = '';
+            individualsRankings.appendChild(headerElement);
+            
+            // No users found
+            if (snapshot.empty) {
+                const noDataElement = document.createElement('div');
+                noDataElement.classList.add('no-data-message');
+                noDataElement.textContent = 'No members found in this house.';
+                individualsRankings.appendChild(noDataElement);
+                return;
+            }
             
             let rank = 1;
             snapshot.forEach(doc => {
@@ -136,15 +205,35 @@ function loadIndividualsLeaderboard() {
                     rowElement.classList.add('current-user');
                 }
                 
+                // Set background color based on rank
+                if (rank === 1) {
+                    rowElement.classList.add('first-place');
+                } else if (rank === 2) {
+                    rowElement.classList.add('second-place');
+                } else if (rank === 3) {
+                    rowElement.classList.add('third-place');
+                }
+                
                 // Create the columns
                 const rankColumn = document.createElement('span');
                 rankColumn.textContent = rank;
+                rankColumn.classList.add('rank-column');
                 
                 const nameColumn = document.createElement('span');
                 nameColumn.textContent = user.name;
+                nameColumn.classList.add('name-column');
+                
+                // Add a small badge for the current user
+                if (userId === auth.currentUser.uid) {
+                    nameColumn.innerHTML = `${user.name} <span class="you-badge">YOU</span>`;
+                }
+                
+                // Add the number of tasks completed
+                nameColumn.innerHTML += `<span class="tasks-badge">${user.tasks || 0} tasks</span>`;
                 
                 const pointsColumn = document.createElement('span');
                 pointsColumn.textContent = user.points || 0;
+                pointsColumn.classList.add('points-column');
                 
                 // Add columns to the row
                 rowElement.appendChild(rankColumn);
@@ -156,8 +245,16 @@ function loadIndividualsLeaderboard() {
                 
                 rank++;
             });
+            
+            // Add the last updated timestamp
+            const lastUpdatedElement = document.createElement('div');
+            lastUpdatedElement.classList.add('last-updated');
+            lastUpdatedElement.textContent = `Last updated: ${new Date().toLocaleTimeString()}`;
+            individualsRankings.appendChild(lastUpdatedElement);
+            
         }, error => {
             console.error('Error loading individuals leaderboard:', error);
+            individualsRankings.innerHTML = '<div class="error-message">Error loading member data. Please try again later.</div>';
         });
 }
 

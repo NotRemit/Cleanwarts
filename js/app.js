@@ -188,10 +188,22 @@ function setupRefreshButton() {
                                 document.getElementById('house-points').textContent = houseData.points;
                             }
                             
-                            // Remove spinning animation
-                            setTimeout(() => {
-                                refreshButton.classList.remove('refreshing');
-                            }, 500);
+                            // Update total platform tasks
+                            db.collection('taskCompletions')
+                                .where('status', '==', 'approved')
+                                .get()
+                                .then(tasksSnapshot => {
+                                    document.getElementById('total-tasks').textContent = tasksSnapshot.size;
+                                    
+                                    // Remove spinning animation after all data is loaded
+                                    setTimeout(() => {
+                                        refreshButton.classList.remove('refreshing');
+                                    }, 500);
+                                })
+                                .catch(error => {
+                                    console.error("Error refreshing total tasks:", error);
+                                    refreshButton.classList.remove('refreshing');
+                                });
                         }).catch(error => {
                             console.error("Error refreshing house data:", error);
                             refreshButton.classList.remove('refreshing');

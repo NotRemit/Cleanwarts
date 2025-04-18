@@ -607,11 +607,14 @@ main {
     flex: 1;
     font-family: 'MedievalSharp', cursive;
     border: 1px solid var(--border-color);
+    transition: all 0.3s ease;
 }
 
 .tab-button.active {
     background-color: var(--primary-color);
     color: white;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
 }
 
 .leaderboard-table {
@@ -620,6 +623,7 @@ main {
     overflow: hidden;
     box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
     border: 1px solid var(--border-color);
+    margin-bottom: 20px;
 }
 
 .leaderboard-header {
@@ -629,6 +633,7 @@ main {
     color: white;
     padding: 15px;
     font-weight: bold;
+    text-align: center;
 }
 
 .leaderboard-row {
@@ -636,14 +641,182 @@ main {
     grid-template-columns: 0.5fr 2fr 1fr;
     padding: 15px;
     border-bottom: 1px solid var(--border-color);
+    align-items: center;
+    transition: all 0.3s ease;
 }
 
 .leaderboard-row:nth-child(even) {
-    background-color: rgba(42, 42, 42, 0.7);
+    background-color: rgba(42, 42, 42, 0.5);
 }
 
 .leaderboard-row:last-child {
     border-bottom: none;
+}
+
+.leaderboard-row:hover {
+    background-color: rgba(106, 27, 154, 0.1);
+}
+
+.house-column, .name-column {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.rank-column {
+    text-align: center;
+    font-weight: bold;
+    font-size: 18px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.points-column {
+    text-align: right;
+    font-weight: bold;
+    color: var(--accent-color);
+    font-size: 18px;
+    font-family: 'MedievalSharp', cursive;
+}
+
+/* Current user highlight */
+.current-user-house {
+    background-color: rgba(255, 215, 0, 0.1) !important;
+    border-left: 4px solid var(--accent-color);
+    position: relative;
+}
+
+.current-user-house::before {
+    content: '✨';
+    position: absolute;
+    left: -15px;
+    font-size: 14px;
+    animation: sparkle 2s infinite;
+}
+
+.current-user {
+    background-color: rgba(106, 27, 154, 0.15) !important;
+    border-left: 4px solid var(--primary-color);
+}
+
+/* Medal positions */
+.first-place {
+    background-color: rgba(255, 215, 0, 0.15) !important;
+}
+
+.first-place .rank-column::before {
+    content: '🏆';
+    margin-right: 5px;
+}
+
+.second-place {
+    background-color: rgba(192, 192, 192, 0.15) !important;
+}
+
+.second-place .rank-column::before {
+    content: '🥈';
+    margin-right: 5px;
+}
+
+.third-place {
+    background-color: rgba(205, 127, 50, 0.15) !important;
+}
+
+.third-place .rank-column::before {
+    content: '🥉';
+    margin-right: 5px;
+}
+
+/* House crest in leaderboard */
+.leaderboard-house-crest {
+    width: 24px;
+    height: 24px;
+    margin-right: 5px;
+    vertical-align: middle;
+}
+
+.house-crest-large {
+    width: 48px;
+    height: 48px;
+    margin-right: 10px;
+}
+
+.member-count {
+    font-size: 12px;
+    color: var(--text-color);
+    opacity: 0.7;
+    margin-left: 5px;
+}
+
+/* Loading indicator */
+.loading-indicator {
+    text-align: center;
+    padding: 20px;
+    color: var(--accent-color);
+    font-style: italic;
+}
+
+/* No data message */
+.no-data-message {
+    text-align: center;
+    padding: 20px;
+    color: var(--text-color);
+    font-style: italic;
+}
+
+/* Error message */
+.error-message {
+    text-align: center;
+    padding: 20px;
+    color: var(--error-color);
+    font-style: italic;
+}
+
+/* Last updated timestamp */
+.last-updated {
+    text-align: right;
+    padding: 10px 15px;
+    font-size: 12px;
+    color: var(--text-color);
+    opacity: 0.7;
+    font-style: italic;
+    border-top: 1px dashed var(--border-color);
+}
+
+/* Individuals header */
+.individuals-header {
+    display: flex;
+    align-items: center;
+    padding: 15px;
+    background-color: var(--card-bg);
+    border-bottom: 1px solid var(--border-color);
+}
+
+.individuals-header h3 {
+    margin: 0;
+    color: var(--accent-color);
+}
+
+/* Badges */
+.you-badge {
+    background-color: var(--primary-color);
+    color: white;
+    font-size: 10px;
+    padding: 2px 5px;
+    border-radius: 3px;
+    margin-left: 5px;
+    vertical-align: middle;
+}
+
+.tasks-badge {
+    background-color: var(--card-bg);
+    color: var(--text-color);
+    font-size: 10px;
+    padding: 2px 5px;
+    border-radius: 3px;
+    margin-left: 10px;
+    opacity: 0.7;
 }
 
 /* My Tasks Styles */
@@ -940,22 +1113,6 @@ main {
 
 .clean-this-button:hover {
     background-color: var(--secondary-color);
-}
-
-/* House-specific background colors for cards */
-.current-user-house {
-    position: relative;
-}
-
-.current-user-house::before {
-    content: '✨';
-    position: absolute;
-    left: -15px;
-}
-
-.current-user {
-    background-color: rgba(75, 0, 130, 0.1) !important;
-    font-weight: bold;
 }
 
 /* Animations for markers */
