@@ -512,7 +512,7 @@ main {
 }
 
 .message.incoming {
-    background-color: #f1f1f1;
+    background-color: #538bad;
     color: var(--text-color);
 }
 
@@ -687,15 +687,78 @@ main {
 }
 
 .admin-task-card {
-    background-color: white;
+    background-color: var(--card-bg);
     border-radius: 10px;
     overflow: hidden;
-    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
+    border: 1px solid var(--border-color);
+    display: flex;
+    flex-direction: column;
+}
+
+.admin-task-card .task-images {
+    display: flex;
+    height: 150px;
+    width: 100%;
+}
+
+.admin-task-card .task-images .before, 
+.admin-task-card .task-images .after {
+    flex: 1;
+    background-size: cover;
+    background-position: center;
+    position: relative;
+}
+
+.admin-task-card .task-images .before::before {
+    content: 'Before';
+    position: absolute;
+    top: 0;
+    left: 0;
+    background-color: rgba(0, 0, 0, 0.7);
+    color: white;
+    padding: 5px;
+    font-size: 12px;
+}
+
+.admin-task-card .task-images .after::before {
+    content: 'After';
+    position: absolute;
+    top: 0;
+    left: 0;
+    background-color: rgba(0, 0, 0, 0.7);
+    color: white;
+    padding: 5px;
+    font-size: 12px;
+}
+
+.admin-task-card .task-info {
+    padding: 15px;
+    background-color: var(--card-bg);
+    color: var(--text-color);
+}
+
+.admin-task-card .task-info h3 {
+    margin-bottom: 10px;
+    color: var(--accent-color);
+}
+
+.admin-task-card .task-info p {
+    margin-bottom: 10px;
+    font-size: 14px;
+}
+
+.admin-task-card .submitter-info {
+    border-top: 1px solid var(--border-color);
+    padding-top: 10px;
+    margin-top: 10px;
 }
 
 .admin-buttons {
     display: flex;
     padding: 15px;
+    background-color: var(--card-bg);
+    border-top: 1px solid var(--border-color);
 }
 
 .admin-buttons button {
@@ -704,6 +767,8 @@ main {
     border: none;
     cursor: pointer;
     font-weight: bold;
+    border-radius: 5px;
+    transition: transform 0.2s;
 }
 
 .admin-buttons .approve {
@@ -712,10 +777,20 @@ main {
     margin-right: 5px;
 }
 
+.admin-buttons .approve:hover {
+    background-color: #66bb66;
+    transform: scale(1.05);
+}
+
 .admin-buttons .reject {
     background-color: var(--error-color);
     color: white;
     margin-left: 5px;
+}
+
+.admin-buttons .reject:hover {
+    background-color: #ff6666;
+    transform: scale(1.05);
 }
 
 /* Responsive Styles */
@@ -908,4 +983,208 @@ main {
 /* Remove Firebase emulator banner */
 .firebase-emulator-warning {
     display: none !important;
+}
+
+/* Area Cleaning Features */
+.area-popup h3 {
+    color: var(--accent-color);
+    margin-bottom: 8px;
+}
+
+.area-popup p {
+    margin-bottom: 10px;
+    color: var(--text-color);
+}
+
+.mark-cleaning-button, .clean-area-button, .clean-this-button {
+    background-color: var(--primary-color);
+    color: white;
+    border: none;
+    padding: 5px 10px;
+    margin: 3px;
+    border-radius: 5px;
+    cursor: pointer;
+    font-family: 'MedievalSharp', cursive;
+    font-size: 14px;
+    position: relative;
+    transition: all 0.2s ease;
+}
+
+.mark-cleaning-button:hover, .clean-area-button:hover, .clean-this-button:hover {
+    background-color: var(--secondary-color);
+    transform: scale(1.05);
+}
+
+.mark-cleaning-button:active, .clean-area-button:active, .clean-this-button:active {
+    transform: scale(0.95);
+    background-color: var(--accent-color);
+    color: var(--background);
+}
+
+.clean-area-button {
+    background-color: var(--success-color);
+}
+
+.clean-area-button:hover {
+    background-color: #75c575;
+}
+
+.clean-this-button {
+    display: block;
+    margin: 10px auto 0;
+    padding: 7px 15px;
+}
+
+.leaflet-popup {
+    margin-bottom: 25px;
+}
+
+.leaflet-popup-content {
+    margin: 13px 13px !important;
+    min-width: 150px;
+}
+
+/* Override Leaflet.draw styles for dark theme */
+.leaflet-draw-toolbar a {
+    background-color: var(--card-bg);
+    color: var(--text-color);
+    border: 1px solid var(--border-color);
+}
+
+.leaflet-draw-toolbar a:hover {
+    background-color: var(--primary-color);
+}
+
+.leaflet-draw-actions a {
+    background-color: var(--card-bg);
+    color: var(--text-color) !important;
+    border: 1px solid var(--border-color);
+}
+
+.leaflet-draw-actions a:hover {
+    background-color: var(--primary-color);
+}
+
+.leaflet-popup-content-wrapper {
+    background-color: var(--card-bg);
+    color: var(--text-color);
+    border: 1px solid var(--border-color);
+}
+
+.leaflet-popup-tip {
+    background-color: var(--card-bg);
+}
+
+.modal-instructions {
+    margin-bottom: 15px;
+    color: var(--accent-color);
+    font-size: 14px;
+}
+
+.required-label {
+    color: var(--error-color);
+    font-size: 12px;
+}
+
+.input-help {
+    font-size: 12px;
+    color: var(--text-color);
+    opacity: 0.7;
+    margin-top: -3px;
+    margin-bottom: 5px;
+}
+
+.location-display {
+    background-color: var(--input-bg);
+    color: var(--input-text);
+    padding: 10px;
+    border-radius: 5px;
+    border: 1px solid var(--border-color);
+    margin-top: 5px;
+    font-size: 14px;
+    word-break: break-all;
+}
+
+/* File input styling */
+input[type="file"] {
+    background-color: var(--input-bg);
+    color: var(--input-text);
+    padding: 8px;
+    border: 1px solid var(--border-color);
+    border-radius: 5px;
+    width: 100%;
+    margin-bottom: 5px;
+    cursor: pointer;
+}
+
+input[type="file"]::-webkit-file-upload-button {
+    background-color: var(--primary-color);
+    color: white;
+    padding: 5px 10px;
+    border: none;
+    border-radius: 3px;
+    cursor: pointer;
+    margin-right: 10px;
+}
+
+input[type="file"]::-webkit-file-upload-button:hover {
+    background-color: var(--secondary-color);
+}
+
+/* Admin Verification Styles */
+.decision-progress {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.7);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1050;
+}
+
+.decision-progress p {
+    background-color: var(--card-bg);
+    color: var(--accent-color);
+    padding: 20px;
+    border-radius: 10px;
+    box-shadow: 0 0 15px rgba(255, 215, 0, 0.3);
+    border: 1px solid var(--accent-color);
+    font-size: 18px;
+    font-family: 'MedievalSharp', cursive;
+}
+
+/* Points Group Styles */
+.points-group {
+    margin: 15px 0;
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.points-group label {
+    font-weight: bold;
+    color: var(--accent-color);
+    min-width: 150px;
+}
+
+.points-input {
+    width: 80px;
+    padding: 8px;
+    border: 1px solid var(--border-color);
+    border-radius: 5px;
+    background-color: var(--input-bg);
+    color: var(--input-text);
+    font-size: 16px;
+    text-align: center;
+    transition: all 0.3s;
+}
+
+.points-input:focus {
+    border-color: var(--accent-color);
+    box-shadow: 0 0 5px rgba(255, 215, 0, 0.5);
+    outline: none;
 } 

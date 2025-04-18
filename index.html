@@ -6,8 +6,10 @@
     <title>Cleanwarts - Hogwarts-Themed Sustainability App</title>
     <link rel="stylesheet" href="styles/main.css">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.css" />
     <link href="https://fonts.googleapis.com/css2?family=MedievalSharp&display=swap" rel="stylesheet">
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+    <script src="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.js"></script>
     <!-- Firebase SDK -->
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
@@ -152,6 +154,7 @@
                         <div class="modal-content">
                             <span class="close-modal">&times;</span>
                             <h3>Submit Cleaning Task</h3>
+                            <p class="modal-instructions">Please upload before and after photos of your cleaning work for verification:</p>
                             <form id="task-submission-form">
                                 <div class="form-group">
                                     <label for="task-title">Title</label>
@@ -159,15 +162,17 @@
                                 </div>
                                 <div class="form-group">
                                     <label for="task-description">Description</label>
-                                    <textarea id="task-description" required></textarea>
+                                    <textarea id="task-description" required placeholder="Describe what you cleaned and how you did it..."></textarea>
                                 </div>
                                 <div class="form-group">
-                                    <label>Before Image</label>
+                                    <label>Before Image <span class="required-label">(Required)</span></label>
+                                    <p class="input-help">Take a photo of the area before you start cleaning</p>
                                     <input type="file" id="before-image" accept="image/*" required>
                                     <div id="before-preview" class="image-preview"></div>
                                 </div>
                                 <div class="form-group">
-                                    <label>After Image</label>
+                                    <label>After Image <span class="required-label">(Required)</span></label>
+                                    <p class="input-help">Take a photo of the same area after you've cleaned it</p>
                                     <input type="file" id="after-image" accept="image/*" required>
                                     <div id="after-preview" class="image-preview"></div>
                                 </div>
@@ -181,18 +186,20 @@
                         <div class="modal-content">
                             <span class="close-modal">&times;</span>
                             <h3>Request Cleaning</h3>
+                            <p class="modal-instructions">Mark an area that needs cleaning for others to find and clean:</p>
                             <form id="request-cleaning-form">
                                 <div class="form-group">
                                     <label for="request-title">Title</label>
-                                    <input type="text" id="request-title" required>
+                                    <input type="text" id="request-title" required placeholder="E.g., Trash near library">
                                 </div>
                                 <div class="form-group">
                                     <label for="request-description">Description</label>
-                                    <textarea id="request-description" required></textarea>
+                                    <textarea id="request-description" required placeholder="Describe what needs to be cleaned..."></textarea>
                                 </div>
                                 <div class="form-group">
-                                    <p>Click on the map to select location</p>
-                                    <div id="selected-location">No location selected</div>
+                                    <label>Selected Location</label>
+                                    <p class="input-help">Draw on the map or click a location to mark the area</p>
+                                    <div id="selected-location" class="location-display">No location selected</div>
                                 </div>
                                 <button type="submit" class="primary-button">Submit Request</button>
                             </form>
