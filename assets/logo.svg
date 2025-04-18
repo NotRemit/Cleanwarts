@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="120" height="120" viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background circle -->
+  <circle cx="60" cy="60" r="55" fill="#4b0082" stroke="#ffd700" stroke-width="3" />
+  
+  <!-- Wizard hat -->
+  <path d="M40,90 L60,40 L80,90 Z" fill="#9370db" stroke="#ffd700" stroke-width="2" />
+  
+  <!-- Sparkling star effects -->
+  <path d="M90,30 L93,40 L85,37 Z" fill="#ffd700" />
+  <path d="M30,50 L33,60 L25,57 Z" fill="#ffd700" />
+  <path d="M75,70 L78,80 L70,77 Z" fill="#ffd700" />
+  
+  <!-- Central C letter -->
+  <text x="60" y="80" font-family="serif" font-size="40" font-weight="bold" text-anchor="middle" fill="#ffd700">C</text>
+</svg> 

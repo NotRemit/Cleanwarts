@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="120" height="120" viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg">
+  <!-- Shield shape -->
+  <path d="M60,10 L100,30 L100,70 C100,90 80,100 60,110 C40,100 20,90 20,70 L20,30 L60,10 Z" fill="#ecb939" stroke="#000000" stroke-width="3" />
+  
+  <!-- Badger symbol -->
+  <text x="60" y="65" font-family="serif" font-size="60" text-anchor="middle" fill="#000000">H</text>
+</svg> 

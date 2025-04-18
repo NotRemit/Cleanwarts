@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cleanwarts - Hogwarts-Themed Sustainability App</title>
+    <link rel="stylesheet" href="styles/main.css">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+    <link href="https://fonts.googleapis.com/css2?family=MedievalSharp&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-storage-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
+    <style>
+        /* Hide Firebase emulator warning banner */
+        .firebase-emulator-warning {
+            display: none !important;
+        }
+    </style>
+</head>
+<body>
+    <div id="app-container">
+        <!-- Auth screens -->
+        <div id="auth-container" class="container">
+            <div class="auth-form" id="login-form">
+                <h2>Welcome to Cleanwarts</h2>
+                <div class="form-group">
+                    <label for="login-email">Email</label>
+                    <input type="email" id="login-email" required>
+                </div>
+                <div class="form-group">
+                    <label for="login-password">Password</label>
+                    <input type="password" id="login-password" required>
+                </div>
+                <button id="login-button" class="primary-button">Login</button>
+                <p>Don't have an account? <a href="#" id="show-register">Register</a></p>
+            </div>
+
+            <div class="auth-form hidden" id="register-form">
+                <h2>Join Cleanwarts</h2>
+                <div class="form-group">
+                    <label for="register-name">Full Name</label>
+                    <input type="text" id="register-name" required>
+                </div>
+                <div class="form-group">
+                    <label for="register-email">Email</label>
+                    <input type="email" id="register-email" required>
+                </div>
+                <div class="form-group">
+                    <label for="register-mobile">Mobile Number</label>
+                    <input type="tel" id="register-mobile" required>
+                </div>
+                <div class="form-group">
+                    <label for="register-password">Password</label>
+                    <input type="password" id="register-password" required>
+                </div>
+                <div class="form-group">
+                    <label>Select Your House</label>
+                    <div class="house-selection">
+                        <div class="house-option" data-house="gryffindor">
+                            <img src="assets/gryffindor.png" alt="Gryffindor">
+                            <span>Gryffindor</span>
+                        </div>
+                        <div class="house-option" data-house="hufflepuff">
+                            <img src="assets/hufflepuff.png" alt="Hufflepuff">
+                            <span>Hufflepuff</span>
+                        </div>
+                        <div class="house-option" data-house="ravenclaw">
+                            <img src="assets/ravenclaw.png" alt="Ravenclaw">
+                            <span>Ravenclaw</span>
+                        </div>
+                        <div class="house-option" data-house="slytherin">
+                            <img src="assets/slytherin.png" alt="Slytherin">
+                            <span>Slytherin</span>
+                        </div>
+                    </div>
+                </div>
+                <button id="register-button" class="primary-button">Register</button>
+                <p>Already have an account? <a href="#" id="show-login">Login</a></p>
+            </div>
+        </div>
+
+        <!-- Main Dashboard - Hidden until logged in -->
+        <div id="dashboard-container" class="container hidden">
+            <header>
+                <div class="logo">
+                    <img src="assets/logo.svg" alt="Cleanwarts Logo">
+                    <h1>Cleanwarts</h1>
+                </div>
+                <div class="user-info">
+                    <span id="user-name"></span>
+                    <span id="user-house" class="house-badge"></span>
+                    <button id="logout-button">Logout</button>
+                </div>
+            </header>
+
+            <nav>
+                <ul>
+                    <li data-page="home" class="active">Dashboard</li>
+                    <li data-page="map">Campus Map</li>
+                    <li data-page="chat">House Chat</li>
+                    <li data-page="leaderboard">Leaderboards</li>
+                    <li data-page="my-tasks">My Tasks</li>
+                </ul>
+            </nav>
+
+            <main>
+                <!-- Home Dashboard -->
+                <section id="home-page" class="page">
+                    <div class="welcome-banner">
+                        <h2>Welcome, <span id="welcome-name"></span>!</h2>
+                        <div class="house-info">
+                            <img id="house-crest" alt="House Crest">
+                            <div>
+                                <h3 id="house-name"></h3>
+                                <p>House Points: <span id="house-points"></span></p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="quick-stats">
+                        <div class="stat-card">
+                            <h3>Your Tasks</h3>
+                            <p id="user-task-count">0</p>
+                        </div>
+                        <div class="stat-card">
+                            <h3>Your Points</h3>
+                            <p id="user-points">0</p>
+                        </div>
+                        <div class="stat-card">
+                            <h3>House Rank</h3>
+                            <p id="house-rank">-</p>
+                        </div>
+                    </div>
+                    <div class="quick-actions">
+                        <button class="action-button" data-action="map">View Map</button>
+                        <button class="action-button" data-action="chat">House Chat</button>
+                        <button class="action-button" data-action="leaderboard">Leaderboards</button>
+                    </div>
+                </section>
+
+                <!-- Campus Map -->
+                <section id="map-page" class="page hidden">
+                    <h2>Campus Map</h2>
+                    <div id="campus-map"></div>
+                    <button id="request-cleaning" class="primary-button">Request Cleaning</button>
+                    
+                    <!-- Task Submission Modal -->
+                    <div id="task-submission-modal" class="modal hidden">
+                        <div class="modal-content">
+                            <span class="close-modal">&times;</span>
+                            <h3>Submit Cleaning Task</h3>
+                            <form id="task-submission-form">
+                                <div class="form-group">
+                                    <label for="task-title">Title</label>
+                                    <input type="text" id="task-title" required>
+                                </div>
+                                <div class="form-group">
+                                    <label for="task-description">Description</label>
+                                    <textarea id="task-description" required></textarea>
+                                </div>
+                                <div class="form-group">
+                                    <label>Before Image</label>
+                                    <input type="file" id="before-image" accept="image/*" required>
+                                    <div id="before-preview" class="image-preview"></div>
+                                </div>
+                                <div class="form-group">
+                                    <label>After Image</label>
+                                    <input type="file" id="after-image" accept="image/*" required>
+                                    <div id="after-preview" class="image-preview"></div>
+                                </div>
+                                <button type="submit" class="primary-button">Submit Task</button>
+                            </form>
+                        </div>
+                    </div>
+                    
+                    <!-- Request Cleaning Modal -->
+                    <div id="request-cleaning-modal" class="modal hidden">
+                        <div class="modal-content">
+                            <span class="close-modal">&times;</span>
+                            <h3>Request Cleaning</h3>
+                            <form id="request-cleaning-form">
+                                <div class="form-group">
+                                    <label for="request-title">Title</label>
+                                    <input type="text" id="request-title" required>
+                                </div>
+                                <div class="form-group">
+                                    <label for="request-description">Description</label>
+                                    <textarea id="request-description" required></textarea>
+                                </div>
+                                <div class="form-group">
+                                    <p>Click on the map to select location</p>
+                                    <div id="selected-location">No location selected</div>
+                                </div>
+                                <button type="submit" class="primary-button">Submit Request</button>
+                            </form>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- House Chat -->
+                <section id="chat-page" class="page hidden">
+                    <h2>House Chat</h2>
+                    <div class="chat-container">
+                        <div id="chat-messages" class="messages-container"></div>
+                        <div class="message-input">
+                            <input type="text" id="message-input" placeholder="Type your message...">
+                            <button id="send-message">Send</button>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Leaderboards -->
+                <section id="leaderboard-page" class="page hidden">
+                    <h2>Leaderboards</h2>
+                    <div class="leaderboard-tabs">
+                        <button class="tab-button active" data-tab="houses">Houses</button>
+                        <button class="tab-button" data-tab="individuals">House Members</button>
+                    </div>
+                    <div id="houses-leaderboard" class="leaderboard-table">
+                        <div class="leaderboard-header">
+                            <span>Rank</span>
+                            <span>House</span>
+                            <span>Points</span>
+                        </div>
+                        <div id="houses-rankings"></div>
+                    </div>
+                    <div id="individuals-leaderboard" class="leaderboard-table hidden">
+                        <div class="leaderboard-header">
+                            <span>Rank</span>
+                            <span>Name</span>
+                            <span>Points</span>
+                        </div>
+                        <div id="individuals-rankings"></div>
+                    </div>
+                </section>
+
+                <!-- My Tasks -->
+                <section id="my-tasks-page" class="page hidden">
+                    <h2>My Tasks</h2>
+                    <div id="tasks-container"></div>
+                </section>
+            </main>
+        </div>
+
+        <!-- Admin Panel - Hidden unless user is admin -->
+        <div id="admin-container" class="container hidden">
+            <header>
+                <div class="logo">
+                    <img src="assets/logo.svg" alt="Cleanwarts Logo">
+                    <h1>Cleanwarts Admin</h1>
+                </div>
+                <div class="user-info">
+                    <span id="admin-name"></span>
+                    <button id="admin-logout-button">Logout</button>
+                </div>
+            </header>
+
+            <main>
+                <section id="task-verification">
+                    <h2>Task Verification</h2>
+                    <div id="pending-tasks"></div>
+                </section>
+            </main>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="js/config.js"></script>
+    <script src="js/auth.js"></script>
+    <script src="js/map.js"></script>
+    <script src="js/chat.js"></script>
+    <script src="js/leaderboard.js"></script>
+    <script src="js/tasks.js"></script>
+    <script src="js/admin.js"></script>
+    <script src="js/app.js"></script>
+</body>
+</html> 

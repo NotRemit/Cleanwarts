@@ -1,0 +1,45 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Allow authenticated users to read all documents
+    match /{document=**} {
+      allow read: if request.auth != null;
+    }
+    
+    // Users collection rules
+    match /users/{userId} {
+      // Users can only write to their own document
+      allow write: if request.auth != null && request.auth.uid == userId;
+    }
+    
+    // Houses collection rules
+    match /houses/{houseId} {
+      // Only admins can modify house data directly
+      allow write: if request.auth != null && 
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true;
+    }
+    
+    // Cleaning tasks collection rules
+    match /cleaningTasks/{taskId} {
+      // Anyone can read tasks
+      allow read: if true;
+      // Authenticated users can create tasks
+      allow create: if request.auth != null;
+      // Only admins or the user who created the task can update or delete it
+      allow update, delete: if request.auth != null && 
+        (request.auth.uid == resource.data.requestedBy || 
+         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true);
+    }
+    
+    // Task completions collection rules
+    match /taskCompletions/{completionId} {
+      // Anyone can read task completions
+      allow read: if true;
+      // Authenticated users can create task completions
+      allow create: if request.auth != null;
+      // Only admins can update status
+      allow update: if request.auth != null && 
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true;
+    }
+  }
+} 

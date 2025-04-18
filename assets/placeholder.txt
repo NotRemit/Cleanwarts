@@ -1,0 +1,12 @@
+Required assets for Cleanwarts app:
+
+1. hogwarts-bg.jpg - Background image for the app (castle/magic themed)
+2. logo.png - Cleanwarts logo
+3. gryffindor.png - Gryffindor house crest
+4. hufflepuff.png - Hufflepuff house crest
+5. ravenclaw.png - Ravenclaw house crest
+6. slytherin.png - Slytherin house crest
+
+Please add these image files to make the app fully functional and visually appealing.
+
+You can find royalty-free or Creative Commons images online for these assets, or create your own custom versions. 
