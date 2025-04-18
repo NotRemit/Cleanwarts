@@ -191,7 +191,30 @@ function initMap() {
         
         // Create popup with content
         const popup = L.popup().setContent(popupContent);
-        layer.bindPopup(popup).openPopup();
+        layer.bindPopup(popup);
+        
+        // Open the popup
+        layer.openPopup();
+        
+        // Add direct event listeners to the buttons (in addition to the delegation)
+        setTimeout(() => {
+            const markButton = popup._contentNode.querySelector('.mark-cleaning-button');
+            const cleanButton = popup._contentNode.querySelector('.clean-area-button');
+            
+            if (markButton) {
+                markButton.addEventListener('click', function() {
+                    console.log('Mark for cleaning clicked via direct handler');
+                    openRequestCleaningModalForArea(layer);
+                });
+            }
+            
+            if (cleanButton) {
+                cleanButton.addEventListener('click', function() {
+                    console.log('Clean area clicked via direct handler');
+                    openTaskSubmissionModalForArea(layer);
+                });
+            }
+        }, 100); // Small delay to ensure the DOM elements are available
     });
 }
 
@@ -260,6 +283,13 @@ function getTaskDataFromTaskId(taskId) {
     if (!cleaningMarkers[taskId]) return null;
     
     const marker = cleaningMarkers[taskId];
+    
+    // Use the stored task data if available
+    if (marker.taskData) {
+        return marker.taskData;
+    }
+    
+    // Fallback to extracting from popup content
     const popup = marker.getPopup();
     if (!popup || !popup._contentNode) return null;
     
@@ -406,18 +436,34 @@ function findTasksNearArea(layer) {
         );
         
         if (distance <= MAX_DISTANCE) {
-            results.push({
-                id: taskId,
-                task: {
-                    title: marker.getPopup()._contentNode.querySelector('h3').textContent,
-                    description: marker.getPopup()._contentNode.querySelector('p').textContent,
-                    location: {
-                        latitude: markerLatLng.lat,
-                        longitude: markerLatLng.lng
-                    },
-                    status: 'pending'
+            // Use the stored task data if available, otherwise create it from popup content
+            if (marker.taskData) {
+                results.push({
+                    id: taskId,
+                    task: marker.taskData
+                });
+            } else {
+                // Fallback to extracting from popup content
+                try {
+                    const popupContent = marker.getPopup()._contentNode;
+                    if (popupContent) {
+                        results.push({
+                            id: taskId,
+                            task: {
+                                title: popupContent.querySelector('h3').textContent,
+                                description: popupContent.querySelector('p').textContent,
+                                location: {
+                                    latitude: markerLatLng.lat,
+                                    longitude: markerLatLng.lng
+                                },
+                                status: 'pending'
+                            }
+                        });
+                    }
+                } catch (error) {
+                    console.error("Error extracting task data from popup:", error);
                 }
-            });
+            }
         }
     }
     
@@ -431,14 +477,21 @@ async function loadCleaningTasks() {
         
         tasksSnapshot.forEach(doc => {
             const task = doc.data();
-            addMarkerForTask(doc.id, task);
+            // Only add markers for pending tasks
+            if (task.status !== 'approved') {
+                addMarkerForTask(doc.id, task);
+            }
         });
         
         // Set up real-time listener for new tasks
         db.collection('cleaningTasks').onSnapshot(snapshot => {
             snapshot.docChanges().forEach(change => {
                 if (change.type === 'added') {
-                    addMarkerForTask(change.doc.id, change.doc.data());
+                    const task = change.doc.data();
+                    // Only add marker if the task is not approved
+                    if (task.status !== 'approved') {
+                        addMarkerForTask(change.doc.id, task);
+                    }
                 } else if (change.type === 'modified') {
                     updateMarkerForTask(change.doc.id, change.doc.data());
                 } else if (change.type === 'removed') {
@@ -477,13 +530,25 @@ function addMarkerForTask(taskId, task) {
         </div>
     `);
     
+    // Store task data directly in the marker for easier access
+    marker.taskData = task;
+    
+    // Add event listener for popup opening to attach button functionality
     marker.on('popupopen', function() {
         const popup = this.getPopup();
         const cleanThisButton = popup._contentNode.querySelector('.clean-this-button');
         
         if (cleanThisButton) {
-            cleanThisButton.addEventListener('click', function() {
-                openTaskSubmissionModal(taskId, task);
+            // Remove any existing event listeners to avoid duplicates
+            const newButton = cleanThisButton.cloneNode(true);
+            cleanThisButton.parentNode.replaceChild(newButton, cleanThisButton);
+            
+            // Add the event listener to the new button
+            newButton.addEventListener('click', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                console.log('Clean this clicked via marker popup handler');
+                openTaskSubmissionModal(taskId, marker.taskData);
             });
         }
     });
@@ -497,7 +562,10 @@ function updateMarkerForTask(taskId, task) {
         removeMarkerForTask(taskId);
     }
     
-    addMarkerForTask(taskId, task);
+    // Only add marker back if status is not approved
+    if (task.status !== 'approved') {
+        addMarkerForTask(taskId, task);
+    }
 }
 
 // Remove marker for a task

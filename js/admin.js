@@ -288,6 +288,14 @@ async function handleTaskDecision(taskId, task, decision, pointsToAward) {
                             lastCleanedAt: firebase.firestore.FieldValue.serverTimestamp()
                         });
                         console.log(`Updated cleaning task ${task.taskId} status to approved`);
+                        
+                        // If map is initialized, remove the marker immediately
+                        if (typeof removeMarkerForTask === 'function' && typeof cleaningMarkers !== 'undefined') {
+                            if (cleaningMarkers && cleaningMarkers[task.taskId]) {
+                                removeMarkerForTask(task.taskId);
+                                console.log(`Removed marker for task ${task.taskId} from map`);
+                            }
+                        }
                     }
                 } catch (error) {
                     console.error("Error updating cleaning task:", error);
@@ -308,18 +316,28 @@ async function handleTaskDecision(taskId, task, decision, pointsToAward) {
             
             // Add points to house
             try {
-                if (task.userHouse) {
+                if (task.userHouse && HOUSES[task.userHouse]) {
                     await db.collection('houses').doc(task.userHouse).update({
                         points: firebase.firestore.FieldValue.increment(pointsToAward)
                     });
                     console.log(`Awarded ${pointsToAward} points to house ${task.userHouse}`);
+                } else if (task.userHouse) {
+                    console.warn(`House '${task.userHouse}' not found in HOUSES configuration, but trying to award points anyway`);
+                    try {
+                        await db.collection('houses').doc(task.userHouse).update({
+                            points: firebase.firestore.FieldValue.increment(pointsToAward)
+                        });
+                        console.log(`Awarded ${pointsToAward} points to unknown house ${task.userHouse}`);
+                    } catch (houseError) {
+                        console.error(`Failed to award points to unknown house: ${houseError.message}`);
+                    }
                 }
             } catch (error) {
                 console.error("Error updating house points:", error);
                 alert(`Unable to award points to house. Error: ${error.message}`);
             }
             
-            alert(`Task approved! ${pointsToAward} points awarded to ${task.userName} and ${HOUSES[task.userHouse].name}.`);
+            alert(`Task approved! ${pointsToAward} points awarded to ${task.userName} and ${HOUSES[task.userHouse]?.name || task.userHouse || 'Unknown House'}.`);
         } else {
             alert('Task rejected.');
         }
