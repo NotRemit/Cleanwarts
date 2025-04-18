@@ -125,19 +125,23 @@ function generateDemoData() {
 // Create a demo admin account for testing
 async function createDemoAdminUser() {
     try {
+        // Admin credentials
+        const adminEmail = 'admin@gmail.com';
+        const adminPassword = '123456';
+        
         // Check if demo admin exists
-        const adminSnapshot = await db.collection('users').where('email', '==', 'remit@gmail.com').get();
+        const adminSnapshot = await db.collection('users').where('email', '==', adminEmail).get();
         
         if (adminSnapshot.empty) {
             // Create a demo admin user
-            auth.createUserWithEmailAndPassword('remit@gmail.com', '123456')
+            auth.createUserWithEmailAndPassword(adminEmail, adminPassword)
                 .then(async (userCredential) => {
                     const user = userCredential.user;
                     
                     // Add admin data
                     await db.collection('users').doc(user.uid).set({
-                        name: 'Remit Admin',
-                        email: 'remit@gmail.com',
+                        name: 'Administrator',
+                        email: adminEmail,
                         mobile: '1234567890',
                         house: 'gryffindor',
                         points: 0,
@@ -150,21 +154,66 @@ async function createDemoAdminUser() {
                 })
                 .catch((error) => {
                     console.error('Error creating admin:', error);
+                    
+                    // If the account already exists but we couldn't find it in Firestore
+                    if (error.code === 'auth/email-already-in-use') {
+                        console.log('Admin account exists in Auth but not in Firestore. Trying to sign in...');
+                        
+                        // Try to sign in with the admin credentials
+                        auth.signInWithEmailAndPassword(adminEmail, adminPassword)
+                            .then(async (userCredential) => {
+                                const user = userCredential.user;
+                                
+                                // Add admin data to Firestore
+                                await db.collection('users').doc(user.uid).set({
+                                    name: 'Administrator',
+                                    email: adminEmail,
+                                    mobile: '1234567890',
+                                    house: 'gryffindor',
+                                    points: 0,
+                                    tasks: 0,
+                                    isAdmin: true,
+                                    createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                                });
+                                
+                                console.log('Admin account data created in Firestore');
+                                
+                                // Sign out again to not interfere with normal login
+                                auth.signOut();
+                            })
+                            .catch((signInError) => {
+                                console.error('Error signing in as admin:', signInError);
+                            });
+                    }
                 });
+        } else {
+            console.log('Admin account already exists');
+            
+            // Ensure the account has admin privileges
+            const adminDoc = adminSnapshot.docs[0];
+            if (!adminDoc.data().isAdmin) {
+                await db.collection('users').doc(adminDoc.id).update({
+                    isAdmin: true
+                });
+                console.log('Updated existing account with admin privileges');
+            }
         }
     } catch (error) {
         console.error('Error checking for admin:', error);
     }
 }
 
-// Initialize demo data if on localhost
-if (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1") {
-    // Wait for Firestore connection, then create demo data
-    setTimeout(() => {
+// Initialize demo data for any environment
+// Always create the admin account regardless of hostname
+setTimeout(() => {
+    // Only generate other demo data if on localhost
+    if (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1") {
         generateDemoData();
-        createDemoAdminUser();
-    }, 2000);
-}
+    }
+    
+    // Always ensure admin account exists
+    createDemoAdminUser();
+}, 2000);
 
 // Task Points Configuration
 const TASK_POINTS = 10; // Points awarded per approved task 

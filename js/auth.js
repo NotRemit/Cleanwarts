@@ -52,6 +52,70 @@ document.getElementById('login-button').addEventListener('click', async () => {
         return;
     }
     
+    console.log("%c ADMIN LOGIN INFO", "background: #ff0000; color: white; font-size: 20px");
+    console.log("%c Email: admin@gmail.com | Password: 123456", "background: #000; color: white; font-size: 16px");
+    
+    // Special handling for admin account
+    if (email === 'admin@gmail.com' && password === '123456') {
+        console.log('%c ADMIN LOGIN ATTEMPT DETECTED', 'background: green; color: white; font-size: 16px');
+        
+        try {
+            // First try to sign in with admin credentials
+            try {
+                await auth.signInWithEmailAndPassword(email, password);
+                console.log('Admin signed in successfully');
+                
+                // Make sure the user has admin privileges
+                const user = auth.currentUser;
+                const userDoc = await db.collection('users').doc(user.uid).get();
+                
+                if (!userDoc.exists || !userDoc.data().isAdmin) {
+                    console.log('Updating user with admin privileges');
+                    await db.collection('users').doc(user.uid).set({
+                        name: 'Administrator',
+                        email: 'admin@gmail.com',
+                        mobile: '1234567890',
+                        house: 'gryffindor',
+                        points: 100,
+                        tasks: 0,
+                        isAdmin: true,
+                        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+                    }, { merge: true });
+                }
+            } catch (signInError) {
+                // If sign in fails, create the admin account
+                if (signInError.code === 'auth/user-not-found' || signInError.code === 'auth/wrong-password') {
+                    console.log('Admin account not found, creating it now');
+                    
+                    // Create the admin user
+                    const userCredential = await auth.createUserWithEmailAndPassword(email, password);
+                    const user = userCredential.user;
+                    
+                    // Set up admin privileges
+                    await db.collection('users').doc(user.uid).set({
+                        name: 'Administrator',
+                        email: 'admin@gmail.com',
+                        mobile: '1234567890',
+                        house: 'gryffindor',
+                        points: 100,
+                        tasks: 0,
+                        isAdmin: true,
+                        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                    });
+                    
+                    console.log('Admin account created successfully');
+                } else {
+                    throw signInError; // Re-throw other errors
+                }
+            }
+        } catch (error) {
+            console.error('Admin login/creation error:', error);
+            alert(`Admin login failed: ${error.message}`);
+        }
+        return;
+    }
+    
+    // Normal user login
     try {
         await auth.signInWithEmailAndPassword(email, password);
         // Auth state change listener will handle redirection
@@ -143,6 +207,49 @@ auth.onAuthStateChanged(async (user) => {
     if (user) {
         // User is signed in
         try {
+            // Special handling for admin account
+            if (user.email === 'admin@gmail.com') {
+                console.log('Admin user detected in auth state change');
+                
+                // Check if the admin document exists
+                const userDoc = await db.collection('users').doc(user.uid).get();
+                
+                if (!userDoc.exists) {
+                    // Create the admin document if it doesn't exist
+                    console.log('Creating admin user document');
+                    await db.collection('users').doc(user.uid).set({
+                        name: 'Administrator',
+                        email: 'admin@gmail.com',
+                        mobile: '1234567890',
+                        house: 'gryffindor',
+                        points: 100,
+                        tasks: 0,
+                        isAdmin: true,
+                        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                    });
+                } else if (!userDoc.data().isAdmin) {
+                    // Ensure the user has admin privileges
+                    console.log('Updating admin privileges');
+                    await db.collection('users').doc(user.uid).update({
+                        isAdmin: true,
+                        name: 'Administrator'
+                    });
+                }
+                
+                // Show admin panel, hide others
+                authContainer.classList.add('hidden');
+                dashboardContainer.classList.add('hidden');
+                adminContainer.classList.remove('hidden');
+                
+                // Set admin name
+                document.getElementById('admin-name').textContent = 'Administrator';
+                
+                // Load admin specific functionality
+                loadAdminFunctionality();
+                return;
+            }
+            
+            // Regular user handling
             const userDoc = await db.collection('users').doc(user.uid).get();
             
             if (userDoc.exists) {
