@@ -162,20 +162,129 @@ document.getElementById('register-button').addEventListener('click', async () =>
             createdAt: firebase.firestore.FieldValue.serverTimestamp()
         });
         
-        // Also update house collection with a new member
-        await db.collection('houses').doc(selectedHouse).update({
-            memberCount: firebase.firestore.FieldValue.increment(1)
-        }).catch(async () => {
-            // If house document doesn't exist, create it
-            await db.collection('houses').doc(selectedHouse).set({
-                name: HOUSES[selectedHouse].name,
-                points: 0,
-                memberCount: 1
+        // Try to update house collection with a new member, but don't block registration if it fails
+        try {
+            await db.collection('houses').doc(selectedHouse).update({
+                memberCount: firebase.firestore.FieldValue.increment(1)
             });
-        });
+        } catch (houseError) {
+            // If house update fails due to permissions or if document doesn't exist
+            console.warn(`Could not update house member count: ${houseError.message}`);
+            
+            // Try to check if house document exists before trying to create it
+            try {
+                const houseDoc = await db.collection('houses').doc(selectedHouse).get();
+                
+                if (!houseDoc.exists) {
+                    // If house document doesn't exist, try to create it
+                    try {
+                        await db.collection('houses').doc(selectedHouse).set({
+                            name: HOUSES[selectedHouse].name,
+                            points: 0,
+                            memberCount: 1
+                        });
+                        console.log(`Created new house document for ${selectedHouse}`);
+                    } catch (createError) {
+                        console.error(`Could not create house document: ${createError.message}`);
+                        // Just log the error but continue with registration
+                    }
+                }
+            } catch (getError) {
+                console.error(`Could not check if house exists: ${getError.message}`);
+            }
+        }
         
         // Auth state change listener will handle redirection
         alert(`Welcome to ${HOUSES[selectedHouse].name}, ${name}!`);
+        
+        // Trigger a refresh of the dashboard data when it appears
+        const checkDashboardInterval = setInterval(() => {
+            if (!dashboardContainer.classList.contains('hidden')) {
+                clearInterval(checkDashboardInterval);
+                
+                // Get user data directly for immediate feedback
+                const userData = {
+                    name: name,
+                    email: email,
+                    mobile: mobile,
+                    house: selectedHouse,
+                    points: 0,
+                    tasks: 0
+                };
+                
+                // Update UI with user data
+                updateUserInfo(userData);
+                
+                // Force-refresh dashboard data
+                if (typeof loadDashboardData === 'function') {
+                    loadDashboardData(userData, user.uid);
+                }
+                
+                // Immediately set initial values so user sees something
+                document.getElementById('user-points').textContent = '0';
+                document.getElementById('user-task-count').textContent = '0';
+                document.getElementById('house-points').textContent = '0';
+                document.getElementById('house-rank').textContent = '-';
+                document.getElementById('total-tasks').textContent = '0';
+                
+                // Manually update the UI with house information even if the house document doesn't exist
+                try {
+                    // First try to get the house document if it exists
+                    db.collection('houses').doc(selectedHouse).get().then(houseDoc => {
+                        if (houseDoc.exists) {
+                            document.getElementById('house-points').textContent = houseDoc.data().points || 0;
+                        }
+                        
+                        // Get house ranking information
+                        db.collection('houses')
+                            .orderBy('points', 'desc')
+                            .get()
+                            .then(snapshot => {
+                                let rank = 1;
+                                let found = false;
+                                let totalHouses = snapshot.size;
+                                
+                                snapshot.forEach(doc => {
+                                    if (doc.id === selectedHouse) {
+                                        document.getElementById('house-rank').textContent = `${rank}/${totalHouses}`;
+                                        found = true;
+                                    }
+                                    rank++;
+                                });
+                            })
+                            .catch(error => {
+                                console.error("Error getting house rank:", error);
+                            });
+                        
+                        // Get total platform tasks
+                        db.collection('taskCompletions')
+                            .where('status', '==', 'approved')
+                            .get()
+                            .then(tasksSnapshot => {
+                                document.getElementById('total-tasks').textContent = tasksSnapshot.size;
+                            })
+                            .catch(error => {
+                                console.error("Error getting total tasks:", error);
+                            });
+                    }).catch(error => {
+                        console.error("Error getting house data after registration:", error);
+                    });
+                } catch (dashboardError) {
+                    console.error("Error updating dashboard after registration:", dashboardError);
+                }
+                
+                // If we have a refresh button, simulate a click on it
+                const refreshButton = document.getElementById('refresh-dashboard');
+                if (refreshButton) {
+                    refreshButton.click();
+                }
+            }
+        }, 500);
+        
+        // Stop checking after 10 seconds to prevent any potential infinite loops
+        setTimeout(() => {
+            clearInterval(checkDashboardInterval);
+        }, 10000);
     } catch (error) {
         console.error('Registration error:', error);
         
@@ -382,6 +491,27 @@ function updateUserInfo(userData) {
 // Load dashboard data
 async function loadDashboardData(userData, userId) {
     try {
+        // First, ensure house document exists
+        if (userData.house && HOUSES[userData.house]) {
+            try {
+                const houseDoc = await db.collection('houses').doc(userData.house).get();
+                if (!houseDoc.exists) {
+                    // Create house document if it doesn't exist
+                    await db.collection('houses').doc(userData.house).set({
+                        name: HOUSES[userData.house].name,
+                        points: 0,
+                        memberCount: 0
+                    });
+                    console.log(`Created missing house document for ${userData.house}`);
+                    
+                    // After creating house, fetch the house counts
+                    await updateHouseMemberCount(userData.house);
+                }
+            } catch (error) {
+                console.error("Error ensuring house exists:", error);
+            }
+        }
+        
         // Set up real-time listeners for user data updates
         const userListener = db.collection('users').doc(userId)
             .onSnapshot(doc => {
@@ -408,7 +538,19 @@ async function loadDashboardData(userData, userId) {
             .onSnapshot(doc => {
                 if (doc.exists) {
                     const houseData = doc.data();
-                    document.getElementById('house-points').textContent = houseData.points;
+                    document.getElementById('house-points').textContent = houseData.points || 0;
+                } else {
+                    // If house somehow doesn't exist during the snapshot, create it
+                    console.warn(`House document ${userData.house} missing in real-time listener, creating it...`);
+                    db.collection('houses').doc(userData.house).set({
+                        name: HOUSES[userData.house].name,
+                        points: 0,
+                        memberCount: 0
+                    }).then(() => {
+                        updateHouseMemberCount(userData.house);
+                    }).catch(err => {
+                        console.error("Error creating house in listener:", err);
+                    });
                 }
             }, error => {
                 console.error("Error getting real-time house data:", error);
@@ -469,5 +611,29 @@ async function loadDashboardData(userData, userId) {
         document.getElementById('user-task-count').textContent = '0';
         document.getElementById('house-rank').textContent = '-';
         document.getElementById('total-tasks').textContent = '0';
+    }
+}
+
+// Helper function to update house member count
+async function updateHouseMemberCount(houseId) {
+    if (!houseId) return;
+    
+    try {
+        // Count members in this house
+        const usersSnapshot = await db.collection('users')
+            .where('house', '==', houseId)
+            .where('isAdmin', '==', false)
+            .get();
+        
+        const memberCount = usersSnapshot.size;
+        
+        // Update the house document
+        await db.collection('houses').doc(houseId).update({
+            memberCount: memberCount
+        });
+        
+        console.log(`Updated member count for ${houseId} to ${memberCount}`);
+    } catch (error) {
+        console.error(`Error updating member count for house ${houseId}:`, error);
     }
 } 

@@ -22,13 +22,13 @@ document.addEventListener('DOMContentLoaded', function() {
     // Remove Firebase emulator warning
     removeFirebaseEmulatorWarning();
     
-    // Calculate house points on initialization (excluding admin)
-    // This ensures the admin is not counted in house points from the start
+    // Update dashboard stats after a short delay (to ensure auth is loaded)
     setTimeout(() => {
         if (auth.currentUser) {
-            calculateHousePoints()
-                .then(() => console.log("Initial house points calculation complete (admin excluded)"))
-                .catch(error => console.error("Error in initial house points calculation:", error));
+            // Just update the dashboard stats directly
+            updateDashboardStats()
+                .then(() => console.log("Initial dashboard update complete"))
+                .catch(error => console.error("Error in initial dashboard update:", error));
         }
     }, 3000);
 });
@@ -175,17 +175,49 @@ function removeFirebaseEmulatorWarning() {
 // Calculate house points (excluding admin users)
 async function calculateHousePoints() {
     try {
-        // Get all houses
-        const housesSnapshot = await db.collection('houses').get();
+        // Get current user first to check permissions
+        const currentUserDoc = await db.collection('users').doc(auth.currentUser.uid).get();
+        if (!currentUserDoc.exists) {
+            throw new Error("Current user document not found");
+        }
+        
+        const currentUserData = currentUserDoc.data();
+        const isAdmin = currentUserData.isAdmin === true;
+        
+        // If not admin, use the read-only approach instead to avoid permission errors
+        if (!isAdmin) {
+            console.log("Non-admin user detected, using read-only approach");
+            return await updateDashboardStats();
+        }
+        
+        // --- Below code only runs for admin users ---
+        
+        // Get all valid houses from the HOUSES configuration
+        const validHouseIds = Object.keys(HOUSES);
         const houses = {};
         
-        // Initialize house data with zero points
-        housesSnapshot.forEach(doc => {
-            houses[doc.id] = {
-                name: doc.data().name,
+        // Initialize house data for all valid houses
+        for (const houseId of validHouseIds) {
+            houses[houseId] = {
+                name: HOUSES[houseId].name,
                 points: 0,
                 memberCount: 0
             };
+        }
+        
+        // Get all house documents that exist in Firestore
+        const housesSnapshot = await db.collection('houses').get();
+        
+        // Add existing house data
+        housesSnapshot.forEach(doc => {
+            if (houses[doc.id]) {
+                // Use existing document data but reset points and memberCount for recalculation
+                houses[doc.id] = {
+                    name: doc.data().name,
+                    points: 0,
+                    memberCount: 0
+                };
+            }
         });
         
         // Get all users except admin users
@@ -205,35 +237,88 @@ async function calculateHousePoints() {
             }
         });
         
-        // Update the houses collection with calculated points
-        const batch = db.batch();
-        
-        for (const [houseId, houseData] of Object.entries(houses)) {
-            const houseRef = db.collection('houses').doc(houseId);
-            batch.update(houseRef, {
-                points: houseData.points,
-                memberCount: houseData.memberCount
-            });
-        }
-        
-        await batch.commit();
-        console.log("House points calculated (admins excluded) and updated successfully");
-        
-        // If current user is logged in, update the house points in the dashboard
-        if (auth.currentUser) {
-            const userDoc = await db.collection('users').doc(auth.currentUser.uid).get();
-            if (userDoc.exists) {
-                const userData = userDoc.data();
-                if (userData.house && houses[userData.house]) {
-                    document.getElementById('house-points').textContent = houses[userData.house].points;
+        // Update house documents since we're an admin
+        try {
+            // Update or create the houses collection with calculated points
+            const batch = db.batch();
+            
+            for (const [houseId, houseData] of Object.entries(houses)) {
+                const houseRef = db.collection('houses').doc(houseId);
+                
+                // Check if this house document exists
+                const houseDoc = await houseRef.get();
+                
+                if (houseDoc.exists) {
+                    // Update existing document
+                    batch.update(houseRef, {
+                        points: houseData.points,
+                        memberCount: houseData.memberCount
+                    });
+                } else {
+                    // Create new document if it doesn't exist
+                    batch.set(houseRef, {
+                        name: houseData.name,
+                        points: houseData.points,
+                        memberCount: houseData.memberCount
+                    });
                 }
             }
+            
+            await batch.commit();
+            console.log("House points calculated and updated successfully by admin");
+            
+            // Update dashboard UI with the calculated data
+            if (currentUserData.house && houses[currentUserData.house]) {
+                document.getElementById('house-points').textContent = houses[currentUserData.house].points;
+            }
+            
+            // Update house rank
+            updateHouseRanking(currentUserData.house);
+            
+            return houses;
+        } catch (error) {
+            console.error("Admin failed to update house points:", error);
+            // Fall back to read-only method if we fail
+            await updateDashboardStats();
+            return null;
         }
-        
-        return houses;
     } catch (error) {
-        console.error("Error calculating house points:", error);
-        throw error;
+        console.error("Error in calculate house points:", error);
+        // Always fall back to updateDashboardStats on any error
+        await updateDashboardStats();
+        return null;
+    }
+}
+
+// Helper function to update house ranking display
+async function updateHouseRanking(userHouse) {
+    if (!userHouse) return;
+    
+    try {
+        const housesSnapshot = await db.collection('houses')
+            .orderBy('points', 'desc')
+            .get();
+        
+        if (!housesSnapshot.empty) {
+            let rank = 1;
+            let found = false;
+            let totalHouses = housesSnapshot.size;
+            
+            housesSnapshot.forEach(doc => {
+                if (doc.id === userHouse) {
+                    document.getElementById('house-rank').textContent = `${rank}/${totalHouses}`;
+                    found = true;
+                }
+                rank++;
+            });
+            
+            if (!found) {
+                document.getElementById('house-rank').textContent = '-';
+            }
+        }
+    } catch (error) {
+        console.error("Error getting house rank:", error);
+        document.getElementById('house-rank').textContent = '-';
     }
 }
 
@@ -241,57 +326,132 @@ async function calculateHousePoints() {
 function setupRefreshButton() {
     const refreshButton = document.getElementById('refresh-dashboard');
     if (refreshButton) {
-        refreshButton.addEventListener('click', () => {
+        refreshButton.addEventListener('click', async () => {
             if (refreshButton.classList.contains('refreshing')) return;
             
             refreshButton.classList.add('refreshing');
             
-            if (auth.currentUser) {
-                // Calculate house points first (this excludes admin users)
-                calculateHousePoints().then(() => {
-                    console.log("House points recalculated on refresh");
-                    
-                    // Get current user's data
-                    db.collection('users').doc(auth.currentUser.uid).get().then(doc => {
-                        if (doc.exists) {
-                            const userData = doc.data();
-                            
-                            // Update user stats
-                            document.getElementById('user-points').textContent = userData.points || 0;
-                            document.getElementById('user-task-count').textContent = userData.tasks || 0;
-                            
-                            // House points are already updated by calculateHousePoints
-                            
-                            // Update total platform tasks
-                            db.collection('taskCompletions')
-                                .where('status', '==', 'approved')
-                                .get()
-                                .then(tasksSnapshot => {
-                                    document.getElementById('total-tasks').textContent = tasksSnapshot.size;
-                                    
-                                    // Remove refreshing animation after all data is loaded
-                                    setTimeout(() => {
-                                        refreshButton.classList.remove('refreshing');
-                                    }, 500);
-                                })
-                                .catch(error => {
-                                    console.error("Error refreshing total tasks:", error);
-                                    refreshButton.classList.remove('refreshing');
-                                });
-                        } else {
-                            refreshButton.classList.remove('refreshing');
-                        }
-                    }).catch(error => {
-                        console.error("Error refreshing user data:", error);
-                        refreshButton.classList.remove('refreshing');
-                    });
-                }).catch(error => {
-                    console.error("Error calculating house points:", error);
+            try {
+                if (auth.currentUser) {
+                    // Just update dashboard stats directly
+                    await updateDashboardStats();
+                    console.log("Dashboard refreshed");
+                }
+            } catch (error) {
+                console.error("Error refreshing dashboard:", error);
+            } finally {
+                // Always remove the refreshing state
+                setTimeout(() => {
                     refreshButton.classList.remove('refreshing');
-                });
-            } else {
-                refreshButton.classList.remove('refreshing');
+                }, 500);
             }
         });
+    }
+}
+
+// Helper function to ensure house exists
+async function ensureHouseExists(houseId) {
+    if (!houseId || !HOUSES[houseId]) return Promise.resolve();
+    
+    try {
+        const houseDoc = await db.collection('houses').doc(houseId).get();
+        
+        if (!houseDoc.exists) {
+            // Create the house document if it doesn't exist
+            await db.collection('houses').doc(houseId).set({
+                name: HOUSES[houseId].name,
+                points: 0,
+                memberCount: 0
+            });
+            console.log(`Created missing house document for ${houseId}`);
+        }
+        
+        return Promise.resolve();
+    } catch (error) {
+        console.error(`Error ensuring house ${houseId} exists:`, error);
+        return Promise.reject(error);
+    }
+}
+
+// Helper function to update dashboard stats without trying to update house documents
+async function updateDashboardStats() {
+    if (!auth.currentUser) return;
+    
+    try {
+        // Get current user data
+        const userDoc = await db.collection('users').doc(auth.currentUser.uid).get();
+        if (!userDoc.exists) {
+            console.warn("User document not found for dashboard update");
+            return;
+        }
+        
+        const userData = userDoc.data();
+        
+        // 1. Update user points - directly from user document
+        document.getElementById('user-points').textContent = userData.points || 0;
+        document.getElementById('user-task-count').textContent = userData.tasks || 0;
+        
+        // 2. Get house points from houses collection - same as leaderboard
+        if (userData.house) {
+            try {
+                // Get house data
+                const houseDoc = await db.collection('houses').doc(userData.house).get();
+                
+                if (houseDoc.exists) {
+                    // Update house points in dashboard
+                    document.getElementById('house-points').textContent = houseDoc.data().points || 0;
+                } else {
+                    // If house document doesn't exist, show 0
+                    document.getElementById('house-points').textContent = '0';
+                }
+                
+                // Get house ranking
+                const housesSnapshot = await db.collection('houses')
+                    .orderBy('points', 'desc')
+                    .get();
+                
+                let rank = 1;
+                let found = false;
+                let totalHouses = housesSnapshot.size;
+                
+                housesSnapshot.forEach(doc => {
+                    if (doc.id === userData.house) {
+                        document.getElementById('house-rank').textContent = `${rank}/${totalHouses}`;
+                        found = true;
+                    }
+                    rank++;
+                });
+                
+                if (!found) {
+                    document.getElementById('house-rank').textContent = '-';
+                }
+            } catch (error) {
+                console.error("Error getting house data:", error);
+                document.getElementById('house-points').textContent = '0';
+                document.getElementById('house-rank').textContent = '-';
+            }
+        }
+        
+        // 3. Get platform tasks - count of approved tasks
+        try {
+            const tasksSnapshot = await db.collection('taskCompletions')
+                .where('status', '==', 'approved')
+                .get();
+            
+            document.getElementById('total-tasks').textContent = tasksSnapshot.size;
+        } catch (error) {
+            console.error("Error getting platform tasks:", error);
+            document.getElementById('total-tasks').textContent = '0';
+        }
+        
+        console.log("Dashboard updated successfully with data from collections");
+    } catch (error) {
+        console.error("Error updating dashboard:", error);
+        // Fallback values
+        document.getElementById('user-points').textContent = '0';
+        document.getElementById('user-task-count').textContent = '0';
+        document.getElementById('house-points').textContent = '0';
+        document.getElementById('house-rank').textContent = '-';
+        document.getElementById('total-tasks').textContent = '0';
     }
 } 

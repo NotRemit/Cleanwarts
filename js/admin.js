@@ -361,3 +361,142 @@ function cleanupAdminFunctionality() {
     
     pendingTasksContainer.innerHTML = '';
 }
+
+// Function to sync house member counts
+async function syncHouseMemberCounts() {
+    try {
+        // Ensure this function is run only by admin
+        if (!auth.currentUser) {
+            console.error("Must be logged in as admin to sync house member counts");
+            return;
+        }
+        
+        const userDoc = await db.collection('users').doc(auth.currentUser.uid).get();
+        if (!userDoc.exists || !userDoc.data().isAdmin) {
+            console.error("Only admins can sync house member counts");
+            return;
+        }
+        
+        // Get counts of users per house
+        const houseCounts = {};
+        const initialHouses = ['gryffindor', 'hufflepuff', 'ravenclaw', 'slytherin'];
+        
+        // Initialize house counts
+        initialHouses.forEach(house => {
+            houseCounts[house] = 0;
+        });
+        
+        // Count users per house
+        const usersSnapshot = await db.collection('users').get();
+        usersSnapshot.forEach(doc => {
+            const userData = doc.data();
+            if (userData.house && !userData.isAdmin) {
+                houseCounts[userData.house] = (houseCounts[userData.house] || 0) + 1;
+            }
+        });
+        
+        // Update all house documents with correct member counts
+        const batch = db.batch();
+        
+        for (const [house, count] of Object.entries(houseCounts)) {
+            const houseRef = db.collection('houses').doc(house);
+            
+            // Check if the house document exists
+            const houseDoc = await houseRef.get();
+            
+            if (houseDoc.exists) {
+                // Update existing house document
+                batch.update(houseRef, {
+                    memberCount: count
+                });
+            } else {
+                // Create new house document
+                batch.set(houseRef, {
+                    name: HOUSES[house]?.name || house.charAt(0).toUpperCase() + house.slice(1),
+                    points: 0,
+                    memberCount: count
+                });
+            }
+        }
+        
+        await batch.commit();
+        alert("House member counts synchronized successfully!");
+        
+    } catch (error) {
+        console.error("Error syncing house member counts:", error);
+        alert(`Failed to sync house member counts: ${error.message}`);
+    }
+}
+
+// Function to initialize houses
+async function initializeHouses() {
+    try {
+        // Ensure this function is run only by admin
+        if (!auth.currentUser) {
+            console.error("Must be logged in as admin to initialize houses");
+            return;
+        }
+        
+        const userDoc = await db.collection('users').doc(auth.currentUser.uid).get();
+        if (!userDoc.exists || !userDoc.data().isAdmin) {
+            console.error("Only admins can initialize houses");
+            return;
+        }
+        
+        const batch = db.batch();
+        const houses = ['gryffindor', 'hufflepuff', 'ravenclaw', 'slytherin'];
+        
+        for (const house of houses) {
+            const houseRef = db.collection('houses').doc(house);
+            const houseDoc = await houseRef.get();
+            
+            if (!houseDoc.exists) {
+                batch.set(houseRef, {
+                    name: HOUSES[house].name,
+                    points: 0,
+                    memberCount: 0
+                });
+            }
+        }
+        
+        await batch.commit();
+        alert("Houses initialized successfully!");
+        
+    } catch (error) {
+        console.error("Error initializing houses:", error);
+        alert(`Failed to initialize houses: ${error.message}`);
+    }
+}
+
+// Add buttons to admin panel to trigger these functions
+function setupAdminHouseManagement() {
+    const adminActionContainer = document.getElementById('admin-actions-container');
+    if (!adminActionContainer) return;
+    
+    // Create House Management section
+    const houseManagementSection = document.createElement('div');
+    houseManagementSection.classList.add('admin-section');
+    houseManagementSection.innerHTML = `
+        <h3>House Management</h3>
+        <div class="button-group">
+            <button id="initialize-houses-btn" class="magic-btn">Initialize Houses</button>
+            <button id="sync-house-members-btn" class="magic-btn">Sync Member Counts</button>
+        </div>
+    `;
+    
+    adminActionContainer.appendChild(houseManagementSection);
+    
+    // Add event listeners
+    document.getElementById('initialize-houses-btn').addEventListener('click', initializeHouses);
+    document.getElementById('sync-house-members-btn').addEventListener('click', syncHouseMemberCounts);
+}
+
+// Call this function after admin panel is loaded
+document.addEventListener('DOMContentLoaded', () => {
+    // Existing code...
+    
+    // Setup house management section in admin panel
+    if (window.location.pathname.includes('admin.html')) {
+        setupAdminHouseManagement();
+    }
+});
