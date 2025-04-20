@@ -212,11 +212,11 @@ async function calculateHousePoints() {
         housesSnapshot.forEach(doc => {
             if (houses[doc.id]) {
                 // Use existing document data but reset points and memberCount for recalculation
-                houses[doc.id] = {
-                    name: doc.data().name,
-                    points: 0,
-                    memberCount: 0
-                };
+            houses[doc.id] = {
+                name: doc.data().name,
+                points: 0,
+                memberCount: 0
+            };
             }
         });
         
@@ -240,20 +240,20 @@ async function calculateHousePoints() {
         // Update house documents since we're an admin
         try {
             // Update or create the houses collection with calculated points
-            const batch = db.batch();
-            
-            for (const [houseId, houseData] of Object.entries(houses)) {
-                const houseRef = db.collection('houses').doc(houseId);
+        const batch = db.batch();
+        
+        for (const [houseId, houseData] of Object.entries(houses)) {
+            const houseRef = db.collection('houses').doc(houseId);
                 
                 // Check if this house document exists
                 const houseDoc = await houseRef.get();
                 
                 if (houseDoc.exists) {
                     // Update existing document
-                    batch.update(houseRef, {
-                        points: houseData.points,
-                        memberCount: houseData.memberCount
-                    });
+            batch.update(houseRef, {
+                points: houseData.points,
+                memberCount: houseData.memberCount
+            });
                 } else {
                     // Create new document if it doesn't exist
                     batch.set(houseRef, {
@@ -262,9 +262,9 @@ async function calculateHousePoints() {
                         memberCount: houseData.memberCount
                     });
                 }
-            }
-            
-            await batch.commit();
+        }
+        
+        await batch.commit();
             console.log("House points calculated and updated successfully by admin");
             
             // Update dashboard UI with the calculated data
@@ -332,7 +332,7 @@ function setupRefreshButton() {
             refreshButton.classList.add('refreshing');
             
             try {
-                if (auth.currentUser) {
+            if (auth.currentUser) {
                     // Just update dashboard stats directly
                     await updateDashboardStats();
                     console.log("Dashboard refreshed");
@@ -388,9 +388,9 @@ async function updateDashboardStats() {
         const userData = userDoc.data();
         
         // 1. Update user points - directly from user document
-        document.getElementById('user-points').textContent = userData.points || 0;
-        document.getElementById('user-task-count').textContent = userData.tasks || 0;
-        
+                            document.getElementById('user-points').textContent = userData.points || 0;
+                            document.getElementById('user-task-count').textContent = userData.tasks || 0;
+                            
         // 2. Get house points from houses collection - same as leaderboard
         if (userData.house) {
             try {
